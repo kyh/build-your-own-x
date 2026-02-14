@@ -18,6 +18,7 @@ Minimal working reproductions of popular software technologies built from scratc
 
 ### AI
 
-| Project  | Source                          |
-| -------- | ------------------------------- |
-| OpenClaw | [`openclaw.ts`](./ai/openclaw/openclaw.ts) |
+| Project    | Source                                         |
+| ---------- | ---------------------------------------------- |
+| Claude Code | [`claude-code.ts`](./ai/claude-code/claude-code.ts) |
+| OpenClaw   | [`openclaw.ts`](./ai/openclaw/openclaw.ts)     |
