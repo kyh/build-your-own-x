@@ -1,18 +1,23 @@
-# Rebuilding JavaScript frameworks from scratch
+# Build Your Own X
 
 > "What I cannot create, I do not understand" — Richard Feynman
 
-This repo will try to reproduce a minimal working version of popular JavaScript frameworks and use it to build a [reactive counter example](https://webcomponents.dev/blog/all-the-ways-to-make-a-web-component/). Featuring Alpine, AngularJS, React, Redux, Styled Components, and Vue.
+Minimal working reproductions of popular software technologies built from scratch.
 
-### Frameworks
+### Frontend Frameworks
 
 | Framework         | Library Source                               | App Source                                     | Demo                                                           |
 | ----------------- | -------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
-| Alpine            | [`alpine.js`](./alpine/alpine.js)            | [`index.html`](./alpine/index.html)            | [Example](https://kyh.github.io/frameworks/alpine/)            |
-| AngularJS         | [`angular.js`](./angularjs/angularjs.js)     | [`index.html`](./angularjs/index.html)         | [Example](https://kyh.github.io/frameworks/angularjs/)         |
-| React             | [`react.js`](./react/react.js)               | [`index.html`](./react/index.html)             | [Example](https://kyh.github.io/frameworks/react/)             |
-| React w/ Fiber    | [`react.js`](./react-fiber/react.js)         | [`index.html`](./react-fiber/index.html)       | [Example](https://kyh.github.io/frameworks/react-fiber/)       |
-| Redux             | [`redux.js`](./redux/redux.js)               | [`index.html`](./redux/index.html)             | [Example](https://kyh.github.io/frameworks/redux/)             |
-| Styled Components | [`styled.js`](./styled-components/styled.js) | [`index.html`](./styled-components/index.html) | [Example](https://kyh.github.io/frameworks/styled-components/) |
+| Alpine            | [`alpine.js`](./frameworks/alpine/alpine.js)            | [`index.html`](./frameworks/alpine/index.html)            | [Example](https://kyh.github.io/build-your-own-x/frameworks/alpine/)            |
+| AngularJS         | [`angular.js`](./frameworks/angularjs/angularjs.js)     | [`index.html`](./frameworks/angularjs/index.html)         | [Example](https://kyh.github.io/build-your-own-x/frameworks/angularjs/)         |
+| React             | [`react.js`](./frameworks/react/react.js)               | [`index.html`](./frameworks/react/index.html)             | [Example](https://kyh.github.io/build-your-own-x/frameworks/react/)             |
+| React w/ Fiber    | [`react.js`](./frameworks/react-fiber/react.js)         | [`index.html`](./frameworks/react-fiber/index.html)       | [Example](https://kyh.github.io/build-your-own-x/frameworks/react-fiber/)       |
+| Redux             | [`redux.js`](./frameworks/redux/redux.js)               | [`index.html`](./frameworks/redux/index.html)             | [Example](https://kyh.github.io/build-your-own-x/frameworks/redux/)             |
+| Styled Components | [`styled.js`](./frameworks/styled-components/styled.js) | [`index.html`](./frameworks/styled-components/index.html) | [Example](https://kyh.github.io/build-your-own-x/frameworks/styled-components/) |
+| uhtml             | [`uhtml.js`](./frameworks/uhtml/uhtml.js)              | [`index.html`](./frameworks/uhtml/index.html)             | [Example](https://kyh.github.io/build-your-own-x/frameworks/uhtml/)             |
 
-[Submit a framework](https://github.com/kyh/build-your-own-javascript-x/issues/new)
+### AI
+
+| Project  | Source                          |
+| -------- | ------------------------------- |
+| OpenClaw | [`openclaw.ts`](./ai/openclaw/openclaw.ts) |

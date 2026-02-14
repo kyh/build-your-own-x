@@ -1,0 +1,20 @@
+{
+  "name": "build-your-own-x",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal working reproductions of popular software technologies built from scratch",
+  "license": "MIT",
+  "author": "kyh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyh/build-your-own-x.git"
+  },
+  "homepage": "https://github.com/kyh/build-your-own-x#readme",
+  "bugs": {
+    "url": "https://github.com/kyh/build-your-own-x/issues"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "tsx": "^4.19.0"
+  }
+}
