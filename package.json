@@ -16,5 +16,8 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "tsx": "^4.21.0"
+  },
+  "dependencies": {
+    "commander": "^14.0.3"
   }
 }

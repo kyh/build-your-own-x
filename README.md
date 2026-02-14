@@ -2,7 +2,7 @@
 
 > "What I cannot create, I do not understand" — Richard Feynman
 
-Minimal working reproductions of popular software technologies built from scratch.
+Minimal working reproductions of popular software technologies
 
 ### Frontend Frameworks
 
@@ -18,7 +18,8 @@ Minimal working reproductions of popular software technologies built from scratc
 
 ### AI
 
-| Project    | Source                                         |
-| ---------- | ---------------------------------------------- |
-| Claude Code | [`claude-code.ts`](./ai/claude-code/claude-code.ts) |
-| OpenClaw   | [`openclaw.ts`](./ai/openclaw/openclaw.ts)     |
+| Project     | Source                                               |
+| ----------- | ---------------------------------------------------- |
+| Beads       | [`beads.ts`](./ai/beads/beads.ts)                    |
+| Claude Code | [`claude-code.ts`](./ai/claude-code/claude-code.ts)  |
+| OpenClaw    | [`openclaw.ts`](./ai/openclaw/openclaw.ts)           |
