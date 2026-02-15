@@ -18,6 +18,11 @@
     "tsx": "^4.21.0"
   },
   "dependencies": {
-    "commander": "^14.0.3"
+    "@tensorflow/tfjs-node": "^0.1.17",
+    "commander": "^14.0.3",
+    "lodash": "^4.17.11",
+    "mnist-data": "^1.2.6",
+    "node-remote-plot": "^1.2.0",
+    "shuffle-seed": "^1.1.6"
   }
 }
