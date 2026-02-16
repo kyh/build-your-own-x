@@ -1,16 +1,16 @@
 # Build Your Own OpenClaw
 
-A minimal reproduction of [OpenClaw](https://github.com/nichochar/openclaw) — a persistent, multi-agent AI assistant with tools, memory, and sessions — in a single TypeScript file.
+A minimal reproduction of [OpenClaw](https://github.com/nichochar/openclaw) — a persistent AI assistant with tools, memory, skills, and sessions — in a single TypeScript file.
 
-This is a learning exercise. The goal is to understand how persistent AI assistants work by building one from scratch: sessions, tool use, memory, permissions, compaction, multi-agent routing, and scheduled tasks. Every concept maps directly to a function you can read and modify.
+This is a learning exercise. The goal is to understand how persistent AI assistants work by building one from scratch: sessions, tool use, memory, skills, permissions, compaction, and scheduled tasks. Every concept maps directly to a function you can read and modify.
 
 ## What it does
 
-- **Multi-agent system** — Two agents (Jarvis and Scout) with different personalities, routed by prefix commands
-- **Tool use** — Agents can run shell commands, read/write files, and manage long-term memory
+- **Tool use** — Run shell commands, read/write files, and manage long-term memory
+- **Installable skills** — Markdown instruction files that teach the agent new capabilities
 - **Persistent sessions** — Conversations stored as JSONL files, survive restarts
 - **Context compaction** — Automatically summarizes old messages when context gets too long
-- **Long-term memory** — Keyword-searchable markdown files shared across agents and sessions
+- **Long-term memory** — Keyword-searchable markdown files shared across sessions
 - **Permission controls** — Safe command allowlist with persistent user approvals
 - **Scheduled heartbeats** — Daily agent trigger that runs autonomously on a timer
 
@@ -29,11 +29,46 @@ Requires Node.js >= 17 (for `readline/promises`).
 
 | Command              | Description                          |
 | -------------------- | ------------------------------------ |
-| `/research <query>`  | Route message to Scout (researcher)  |
 | `/new`               | Reset session (start fresh)          |
 | `/quit`              | Exit                                 |
 
 ## Architecture
+
+```
+┌──────────────────────┐
+│   Scratch Pads       │
+│                      │
+│  soul.md             │    ┌───────────────────────┐
+│                      │    │  Skills (Installable)  │
+│  memory/*.md         │    │                       │
+│  sessions/*.jsonl    │    │  skills/*.md          │
+│  exec-approvals.json │    │  loaded on demand via │
+│                      │    │  file tools           │
+└──────────┬───────────┘    └───────────┬───────────┘
+       read│write                       │
+           │                  installed│loaded
+           ▼                            │
+  ┌──────────────────────────────┐      │
+  │                              │◄─────┘
+  │        Agent Loop            │
+  │       (runAgentTurn)         │
+  │                              │        ┌──────────────┐
+  │   load session               │        │              │
+  │   compact if needed          │───────►│   Claude API  │
+  │   call Claude ◄──► tools    │◄───────│   (Gateway)   │
+  │   loop until end_turn        │        │              │
+  │                              │        └──────────────┘
+  │                              │
+  └──────────────┬───────────────┘
+                 ▲
+                 │
+  ┌──────────────┴───────────────┐
+  │   Heartbeat: setInterval     │
+  │   (WAKE UP! every 60s)       │
+  │                              │
+  │   07:30 daily ──► agent turn │
+  └──────────────────────────────┘
+```
 
 ### The agent loop
 
@@ -48,7 +83,6 @@ The core of the system is `runAgentTurn`. Every interaction — whether from a u
 
 ```
 User input
-  -> resolveAgent (route to Jarvis or Scout)
   -> runAgentTurn
        -> loadSession (JSONL)
        -> compactSession (summarize if needed)
@@ -60,7 +94,7 @@ User input
 
 Each session is a JSONL file — one JSON object per line, each representing a message. Messages are appended as they happen (`appendMessage`), so if the process crashes mid-conversation you lose at most one message. Compaction and session resets use `saveSession` to overwrite the full file.
 
-Session keys like `agent:main:repl` get sanitized to filesystem-safe names (`agent_main_repl.jsonl`). Different agents and heartbeats use different session keys, so their histories stay separate.
+Session keys like `repl` get sanitized to filesystem-safe names (`repl.jsonl`). The REPL and heartbeats use different session keys, so their histories stay separate.
 
 ### Tools
 
@@ -76,6 +110,12 @@ Five tools are defined in the `TOOLS` array, each with a JSON schema that Claude
 
 The SDK returns tool input as `unknown`. Rather than using type assertions, we validate at the boundary with `isRecord` and `getString` guards.
 
+### Skills
+
+Skills are installable markdown files that teach the agent new capabilities. They live in `~/.mini-openclaw/skills/` and the agent manages them with its existing file tools — no dedicated skill tools needed.
+
+The agent can write new skills, read them when relevant, list the directory to see what's installed, and delete ones that are no longer needed. Like memory, skills are loaded on demand rather than always present in context, so they scale without bloating the system prompt.
+
 ### Permission controls
 
 When the agent tries to run a command:
@@ -85,16 +125,6 @@ When the agent tries to run a command:
 3. Otherwise, prompt the user interactively and persist their decision to `exec-approvals.json`
 
 Approvals are stored per exact command string. Approving `curl https://example.com` doesn't approve `curl https://evil.com`.
-
-### Multi-agent routing
-
-Messages are routed by `resolveAgent` based on prefix commands. `/research <query>` routes to Scout (the researcher agent), everything else goes to Jarvis (the main agent). Each agent has:
-
-- **A soul** — System prompt that defines personality and behavior
-- **A model** — Which Claude model to use
-- **A session prefix** — Keeps conversation histories separate
-
-Agents share the same memory directory, so Scout can save research findings that Jarvis can later search for.
 
 ### Context compaction
 
@@ -109,37 +139,48 @@ The agent keeps its knowledge but the token count drops significantly. This happ
 
 ### Heartbeats
 
-Heartbeats let the agent act without user input. A `setInterval` runs every 60 seconds and checks the current time:
+Heartbeats let the agent act without user input. They're configured in `~/.mini-openclaw/heartbeats.json` (created with a default 07:30 entry on first run):
+
+```json
+[
+  { "time": "07:30", "prompt": "Good morning! Give me a motivational quote." },
+  { "time": "12:00", "prompt": "Remind me to take a break." }
+]
+```
+
+A `setInterval` runs every 60 seconds, reads the config, and fires each heartbeat once per day at its scheduled time:
 
 ```
 every 60s:
-  if time === "07:30" AND date !== lastHeartbeatDate:
-    lastHeartbeatDate = today
-    runAgentTurn("cron:morning-check", "Good morning! ...", mainAgent)
+  for each heartbeat in heartbeats.json:
+    if time === heartbeat.time AND not yet fired today:
+      runAgentTurn("cron:{time}", heartbeat.prompt)
 ```
 
-The `lastHeartbeatDate` guard prevents double-firing (the 60s interval might hit 07:30 twice). The heartbeat uses its own session key (`cron:morning-check`) so it doesn't pollute the REPL conversation.
+The agent manages heartbeats by reading and writing `heartbeats.json` with its existing file tools — no dedicated heartbeat tools needed. Each heartbeat uses its own session key (e.g. `cron:0730`) so histories stay separate.
 
-Since Node.js is single-threaded, the heartbeat timer only fires between await points. If the user is mid-conversation (waiting on a Claude API call), the heartbeat queues up and fires after the current turn completes. No locks needed.
+Since Node.js is single-threaded, heartbeat timers only fire between await points. If the user is mid-conversation, the heartbeat queues up and fires after the current turn completes. No locks needed.
 
 ### Workspace layout
 
 ```
 ~/.mini-openclaw/
+  soul.md                # System prompt (created on first run, editable)
+  heartbeats.json        # Scheduled heartbeats (created on first run)
   sessions/              # JSONL conversation files
-    agent_main_repl.jsonl
-    agent_researcher_repl.jsonl
-    cron_morning-check.jsonl
-  memory/                # Markdown memory files (shared across agents)
+    repl.jsonl
+    cron_0730.jsonl
+  memory/                # Markdown memory files
     user-preferences.md
     research-findings.md
+  skills/                # Installable skill files (loaded on demand)
+    code-review.md
+    debugging.md
   exec-approvals.json    # Persistent command approvals
 ```
 
 ## Things to try
 
-- **Add a new agent** — Add an entry to `AGENTS` and a routing rule in `resolveAgent`
 - **Add a new tool** — Add a schema to `TOOLS` and a case in `executeTool`
-- **Change the heartbeat schedule** — Modify the time check in `setupHeartbeats`
 - **Swap the memory search** — Replace keyword matching with embeddings for semantic search
 - **Add a new channel** — The agent loop is decoupled from the REPL; you could wire it to a Discord bot or HTTP API

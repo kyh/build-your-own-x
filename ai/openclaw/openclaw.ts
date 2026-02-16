@@ -18,13 +18,9 @@ import { createInterface, type Interface } from "node:readline/promises";
 
 // ─── Types ───
 
-type AgentId = "main" | "researcher";
-
-type AgentConfig = {
-  name: string;
-  model: string;
-  soul: string;
-  sessionPrefix: string;
+type Heartbeat = {
+  time: string;
+  prompt: string;
 };
 
 type Approvals = {
@@ -41,38 +37,43 @@ type SerializedBlock =
 const WORKSPACE = join(homedir(), ".mini-openclaw");
 const SESSIONS_DIR = join(WORKSPACE, "sessions");
 const MEMORY_DIR = join(WORKSPACE, "memory");
+const SKILLS_DIR = join(WORKSPACE, "skills");
 const APPROVALS_FILE = join(WORKSPACE, "exec-approvals.json");
+const HEARTBEATS_FILE = join(WORKSPACE, "heartbeats.json");
 
-// ─── Agents ───
+// ─── Agent ───
 
-const AGENTS: Record<AgentId, AgentConfig> = {
-  main: {
-    name: "Jarvis",
-    model: "claude-sonnet-4-5-20250929",
-    soul: [
-      "You are Jarvis, a personal AI assistant.",
-      "Be genuinely helpful. Skip the pleasantries. Have opinions.",
-      "You have tools — use them proactively.",
-      "",
-      "## Memory",
-      `Your workspace is ${WORKSPACE}.`,
-      "Use save_memory to store important information across sessions.",
-      "Use memory_search at the start of conversations to recall context.",
-    ].join("\n"),
-    sessionPrefix: "agent:main",
-  },
-  researcher: {
-    name: "Scout",
-    model: "claude-sonnet-4-5-20250929",
-    soul: [
-      "You are Scout, a research specialist.",
-      "Your job: find information and cite sources. Every claim needs evidence.",
-      "Use tools to gather data. Be thorough but concise.",
-      "Save important findings with save_memory for other agents to reference.",
-    ].join("\n"),
-    sessionPrefix: "agent:researcher",
-  },
-};
+const MODEL = "claude-sonnet-4-5-20250929";
+const SOUL_PATH = join(WORKSPACE, "soul.md");
+
+const DEFAULT_SOUL = `\
+You are Jarvis, a personal AI assistant.
+Be genuinely helpful. Skip the pleasantries. Have opinions.
+You have tools — use them proactively.
+
+## Skills
+
+Skills are markdown instruction files in ${SKILLS_DIR} — manage them with your file tools.
+Write new skills there, read them when relevant, list the directory to see what's installed.
+
+## Memory
+
+Use save_memory to store important information across sessions.
+Use memory_search at the start of conversations to recall context.
+
+## Heartbeats
+
+You can schedule daily heartbeats that trigger you autonomously at specific times.
+Heartbeats are configured in ${HEARTBEATS_FILE} — read and write it with your file tools.
+`;
+
+/** Load the agent's soul (system prompt) from soul.md, creating the default on first run. */
+function loadSoul(): string {
+  if (!existsSync(SOUL_PATH)) {
+    writeFileSync(SOUL_PATH, DEFAULT_SOUL);
+  }
+  return readFileSync(SOUL_PATH, "utf-8");
+}
 
 // ─── Tools ───
 
@@ -448,7 +449,6 @@ function serializeContent(
 async function runAgentTurn(
   sessionKey: string,
   userText: string,
-  agentConfig: AgentConfig,
   rl: Interface,
 ): Promise<string> {
   let messages = loadSession(sessionKey);
@@ -460,9 +460,9 @@ async function runAgentTurn(
 
   for (let i = 0; i < 20; i++) {
     const response = await client.messages.create({
-      model: agentConfig.model,
+      model: MODEL,
       max_tokens: 4096,
-      system: agentConfig.soul,
+      system: loadSoul(),
       tools: TOOLS,
       messages,
     });
@@ -509,41 +509,48 @@ async function runAgentTurn(
   return "(max turns reached)";
 }
 
-// ─── Multi-Agent Routing ───
-
-/** Route messages to the right agent based on prefix commands (e.g. /research). */
-function resolveAgent(messageText: string): { agentId: AgentId; text: string } {
-  if (messageText.startsWith("/research ")) {
-    return {
-      agentId: "researcher",
-      text: messageText.slice("/research ".length),
-    };
-  }
-  return { agentId: "main", text: messageText };
-}
-
 // ─── Cron / Heartbeats ───
 
-/** Schedule a daily 07:30 heartbeat that triggers the main agent. */
+const DEFAULT_HEARTBEATS: Heartbeat[] = [
+  {
+    time: "07:30",
+    prompt: "Good morning! Check today's date and give me a motivational quote.",
+  },
+];
+
+/** Validate an unknown value as a Heartbeat. */
+function isHeartbeat(v: unknown): v is Heartbeat {
+  return isRecord(v) && typeof v.time === "string" && typeof v.prompt === "string";
+}
+
+/** Load heartbeats from config, creating the default on first run. */
+function loadHeartbeats(): Heartbeat[] {
+  if (!existsSync(HEARTBEATS_FILE)) {
+    writeFileSync(HEARTBEATS_FILE, JSON.stringify(DEFAULT_HEARTBEATS, null, 2));
+  }
+  const raw: unknown = JSON.parse(readFileSync(HEARTBEATS_FILE, "utf-8"));
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isHeartbeat);
+}
+
+/** Check all configured heartbeats every 60s, firing each once per day at its scheduled time. */
 function setupHeartbeats(rl: Interface): void {
-  let lastHeartbeatDate = "";
+  const lastFired = new Map<string, string>();
 
   setInterval(() => {
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const date = now.toISOString().slice(0, 10);
 
-    if (time === "07:30" && date !== lastHeartbeatDate) {
-      lastHeartbeatDate = date;
-      console.log("\n⏰ Heartbeat: morning check");
-      runAgentTurn(
-        "cron:morning-check",
-        "Good morning! Check today's date and give me a motivational quote.",
-        AGENTS.main,
-        rl,
-      ).then((result) => {
-        console.log(`🤖 ${result}\n`);
-      });
+    for (const hb of loadHeartbeats()) {
+      if (hb.time === time && lastFired.get(hb.time) !== date) {
+        lastFired.set(hb.time, date);
+        const sessionKey = `cron:${hb.time.replace(":", "")}`;
+        console.log(`\n⏰ Heartbeat: ${hb.time}`);
+        runAgentTurn(sessionKey, hb.prompt, rl).then((result) => {
+          console.log(`🤖 ${result}\n`);
+        });
+      }
     }
   }, 60_000);
 }
@@ -552,7 +559,7 @@ function setupHeartbeats(rl: Interface): void {
 
 /** Initialize workspace, start heartbeats, and run the interactive REPL. */
 async function main(): Promise<void> {
-  for (const dir of [WORKSPACE, SESSIONS_DIR, MEMORY_DIR]) {
+  for (const dir of [WORKSPACE, SESSIONS_DIR, MEMORY_DIR, SKILLS_DIR]) {
     mkdirSync(dir, { recursive: true });
   }
 
@@ -560,15 +567,11 @@ async function main(): Promise<void> {
 
   setupHeartbeats(rl);
 
-  let sessionKey = "agent:main:repl";
+  let sessionKey = "repl";
 
-  const agentNames = Object.values(AGENTS)
-    .map((a) => a.name)
-    .join(", ");
   console.log("Mini OpenClaw");
-  console.log(`  Agents: ${agentNames}`);
   console.log(`  Workspace: ${WORKSPACE}`);
-  console.log("  Commands: /new (reset), /research <query>, /quit\n");
+  console.log("  Commands: /new (reset), /quit\n");
 
   while (true) {
     let userInput: string;
@@ -592,18 +595,13 @@ async function main(): Promise<void> {
         .toISOString()
         .replace(/[-:T]/g, "")
         .slice(0, 14);
-      sessionKey = `agent:main:repl:${timestamp}`;
+      sessionKey = `repl:${timestamp}`;
       console.log("  Session reset.\n");
       continue;
     }
 
-    const { agentId, text } = resolveAgent(userInput);
-    const agentConfig = AGENTS[agentId];
-    const sk =
-      agentId !== "main" ? `${agentConfig.sessionPrefix}:repl` : sessionKey;
-
-    const response = await runAgentTurn(sk, text, agentConfig, rl);
-    console.log(`\n🤖 [${agentConfig.name}] ${response}\n`);
+    const response = await runAgentTurn(sessionKey, userInput, rl);
+    console.log(`\n🤖 ${response}\n`);
   }
 
   rl.close();
