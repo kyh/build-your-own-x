@@ -23,3 +23,14 @@ Minimal working reproductions of popular software technologies
 | Beads       | [`beads.ts`](./ai/beads/beads.ts)                    |
 | Claude Code | [`claude-code.ts`](./ai/claude-code/claude-code.ts)  |
 | OpenClaw    | [`openclaw.ts`](./ai/openclaw/openclaw.ts)           |
+
+### Machine Learning
+
+| Project                          | Source                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| GPT                              | [`gpt.ts`](./ml/gpt/gpt.ts)                                                        |
+| K-Nearest Neighbors              | [`index.ts`](./ml/knn/index.ts)                                                    |
+| Plinko                           | [`score.js`](./ml/plinko/score.js)                                                  |
+| Linear Regression                | [`linear-regression.ts`](./ml/regressions/linear-regression/linear-regression.ts)   |
+| Logistic Regression              | [`logistic-regression.ts`](./ml/regressions/logistic-regression/logistic-regression.ts) |
+| Multinomial Logistic Regression  | [`logistic-regression.ts`](./ml/regressions/multinominal-logistic-regression/logistic-regression.ts) |
