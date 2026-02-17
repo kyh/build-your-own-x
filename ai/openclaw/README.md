@@ -90,6 +90,8 @@ User input
   -> print response
 ```
 
+OpenClaw uses [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) as their coding agent
+
 ### Sessions
 
 Each session is a JSONL file — one JSON object per line, each representing a message. Messages are appended as they happen (`appendMessage`), so if the process crashes mid-conversation you lose at most one message. Compaction and session resets use `saveSession` to overwrite the full file.
