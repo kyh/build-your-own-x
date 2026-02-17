@@ -107,16 +107,18 @@ Five tools are defined in the `TOOLS` array, each with a JSON schema that Claude
 | `run_command` | Execute a shell command (with permission checks) |
 | `read_file` | Read a file (truncated to 10k chars) |
 | `write_file` | Write a file (creates parent directories) |
-| `save_memory` | Write a markdown file to `~/.mini-openclaw/memory/` |
+| `save_memory` | Write a markdown file to `~/.openclaw/memory/` |
 | `memory_search` | Keyword search across all memory files |
 
 The SDK returns tool input as `unknown`. Rather than using type assertions, we validate at the boundary with `isRecord` and `getString` guards.
 
 ### Skills
 
-Skills are installable markdown files that teach the agent new capabilities. They live in `~/.mini-openclaw/skills/` and the agent manages them with its existing file tools — no dedicated skill tools needed.
+Skills are installable markdown files that teach the agent new capabilities. They live in `~/.openclaw/skills/` and the agent manages them with its existing file tools — no dedicated skill tools needed.
 
 The agent can write new skills, read them when relevant, list the directory to see what's installed, and delete ones that are no longer needed. Like memory, skills are loaded on demand rather than always present in context, so they scale without bloating the system prompt.
+
+We use skills and cli's instead of MCPs in order to integrate with services. OpenClaw uses [mcporter](https://github.com/steipete/mcporter) in order to convert MCPs to CLIs.
 
 ### Permission controls
 
@@ -141,7 +143,7 @@ The agent keeps its knowledge but the token count drops significantly. This happ
 
 ### Heartbeats
 
-Heartbeats let the agent act without user input. They're configured in `~/.mini-openclaw/heartbeats.json` (created with a default 07:30 entry on first run):
+Heartbeats let the agent act without user input. They're configured in `~/.openclaw/heartbeats.json` (created with a default 07:30 entry on first run):
 
 ```json
 [
@@ -166,7 +168,7 @@ Since Node.js is single-threaded, heartbeat timers only fire between await point
 ### Workspace layout
 
 ```
-~/.mini-openclaw/
+~/.openclaw/
   soul.md                # System prompt (created on first run, editable)
   heartbeats.json        # Scheduled heartbeats (created on first run)
   sessions/              # JSONL conversation files
