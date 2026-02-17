@@ -54,8 +54,8 @@ Requires Node.js >= 17 (for `readline/promises`).
   │       (runAgentTurn)         │
   │                              │        ┌──────────────┐
   │   load session               │        │              │
-  │   compact if needed          │───────►│   Claude API  │
-  │   call Claude ◄──► tools    │◄───────│   (Gateway)   │
+  │   compact if needed          │───────►│  UI/Whatsapp │
+  │   call Claude ◄──► tools     │◄───────│   (Gateway)  │
   │   loop until end_turn        │        │              │
   │                              │        └──────────────┘
   │                              │
