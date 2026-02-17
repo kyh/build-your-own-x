@@ -299,23 +299,33 @@ async function executeTool(
     case "save_memory": {
       const key = getString(toolInput, "key");
       const content = getString(toolInput, "content");
-      mkdirSync(MEMORY_DIR, { recursive: true });
-      writeFileSync(join(MEMORY_DIR, `${key}.md`), content);
-      return `Saved to memory: ${key}`;
+      try {
+        mkdirSync(MEMORY_DIR, { recursive: true });
+        writeFileSync(join(MEMORY_DIR, `${key}.md`), content);
+        return `Saved to memory: ${key}`;
+      } catch (err: unknown) {
+        return `Error saving memory: ${err instanceof Error ? err.message : String(err)}`;
+      }
     }
 
     case "memory_search": {
       const query = getString(toolInput, "query").toLowerCase();
       const words = query.split(/\s+/);
       const results: string[] = [];
-      if (existsSync(MEMORY_DIR)) {
-        for (const fname of readdirSync(MEMORY_DIR)) {
-          if (!fname.endsWith(".md")) continue;
-          const content = readFileSync(join(MEMORY_DIR, fname), "utf-8");
-          if (words.some((w) => content.toLowerCase().includes(w))) {
-            results.push(`--- ${fname} ---\n${content}`);
+      const MAX_RESULTS = 10;
+      try {
+        if (existsSync(MEMORY_DIR)) {
+          for (const fname of readdirSync(MEMORY_DIR)) {
+            if (!fname.endsWith(".md")) continue;
+            const content = readFileSync(join(MEMORY_DIR, fname), "utf-8");
+            if (words.some((w) => content.toLowerCase().includes(w))) {
+              results.push(`--- ${fname} ---\n${content}`);
+              if (results.length >= MAX_RESULTS) break;
+            }
           }
         }
+      } catch (err: unknown) {
+        return `Error searching memory: ${err instanceof Error ? err.message : String(err)}`;
       }
       return results.length > 0
         ? results.join("\n\n")
@@ -331,7 +341,6 @@ async function executeTool(
 
 /** Convert a session key (e.g. "agent:main:repl") to a safe filesystem path. */
 function getSessionPath(sessionKey: string): string {
-  mkdirSync(SESSIONS_DIR, { recursive: true });
   const safeKey = sessionKey.replace(/[:/]/g, "_");
   return join(SESSIONS_DIR, `${safeKey}.jsonl`);
 }
@@ -350,7 +359,7 @@ function loadSession(sessionKey: string): Anthropic.MessageParam[] {
         messages.push(parsed);
       }
     } catch {
-      // skip malformed lines
+      console.warn(`  ⚠ Skipping malformed JSONL line in session "${sessionKey}"`);
     }
   }
   return messages;
@@ -394,7 +403,7 @@ async function compactSession(
   console.log("\n  📦 Compacting session history...");
 
   const summary = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: MODEL,
     max_tokens: 2000,
     messages: [
       {
@@ -542,14 +551,22 @@ function setupHeartbeats(rl: Interface): void {
     const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const date = now.toISOString().slice(0, 10);
 
-    for (const hb of loadHeartbeats()) {
-      if (hb.time === time && lastFired.get(hb.time) !== date) {
-        lastFired.set(hb.time, date);
-        const sessionKey = `cron:${hb.time.replace(":", "")}`;
+    const heartbeats = loadHeartbeats();
+    for (let i = 0; i < heartbeats.length; i++) {
+      const hb = heartbeats[i];
+      if (hb === undefined) continue;
+      const heartbeatKey = `${hb.time}:${i}`;
+      if (hb.time === time && lastFired.get(heartbeatKey) !== date) {
+        lastFired.set(heartbeatKey, date);
+        const sessionKey = `cron:${hb.time.replace(":", "")}_${i}`;
         console.log(`\n⏰ Heartbeat: ${hb.time}`);
-        runAgentTurn(sessionKey, hb.prompt, rl).then((result) => {
-          console.log(`🤖 ${result}\n`);
-        });
+        runAgentTurn(sessionKey, hb.prompt, rl)
+          .then((result) => {
+            console.log(`🤖 ${result}\n`);
+          })
+          .catch((err: unknown) => {
+            console.error(`  ❌ Heartbeat failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
       }
     }
   }, 60_000);
@@ -600,8 +617,12 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const response = await runAgentTurn(sessionKey, userInput, rl);
-    console.log(`\n🤖 ${response}\n`);
+    try {
+      const response = await runAgentTurn(sessionKey, userInput, rl);
+      console.log(`\n🤖 ${response}\n`);
+    } catch (err: unknown) {
+      console.error(`\n  ❌ Turn failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    }
   }
 
   rl.close();
