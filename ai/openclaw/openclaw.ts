@@ -453,6 +453,7 @@ function serializeContent(
 }
 
 // ─── Agent Loop ───
+// You could theoretically just use CLaude Code as your agent rather than writing our own code agent harness.
 
 /** Run a full agent turn: load session, call LLM in a loop (up to 20 iterations), handle tool use. */
 async function runAgentTurn(
