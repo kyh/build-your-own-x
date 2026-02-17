@@ -39,7 +39,7 @@ Requires Node.js >= 17 (for `readline/promises`).
 │   Scratch Pads       │
 │                      │
 │  soul.md             │    ┌───────────────────────┐
-│                      │    │  Skills (Installable)  │
+│                      │    │  Skills (Installable) │
 │  memory/*.md         │    │                       │
 │  sessions/*.jsonl    │    │  skills/*.md          │
 │  exec-approvals.json │    │  loaded on demand via │
